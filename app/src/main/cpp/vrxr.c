@@ -7,7 +7,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <EGL/egl.h>
-#include <GLES2/gl2.h>
+#include <GLES3/gl3.h>
 #include "openxr.h"
 #include "openxr_platform.h"
 
@@ -80,7 +80,7 @@ static int makeContext(void) {
     if (gEglDisplay == EGL_NO_DISPLAY) return 0;
     if (!eglInitialize(gEglDisplay, NULL, NULL)) return 0;
     EGLint cfgAttr[] = {
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES3_BIT_KHR,
+        EGL_RENDERABLE_TYPE, 0x0040, /* EGL_OPENGL_ES3_BIT */
         EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
         EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8,
         EGL_DEPTH_SIZE, 16,
@@ -127,7 +127,7 @@ static int createInstance(JNIEnv *env, jobject activity) {
     memset(&androidInfo, 0, sizeof(androidInfo));
     androidInfo.type = XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR;
     androidInfo.applicationVM = gVm;
-    androidInfo.applicationContext = activity;
+    androidInfo.applicationActivity = activity;
 
     XrInstanceCreateInfo ci;
     memset(&ci, 0, sizeof(ci));
@@ -154,10 +154,16 @@ static int createSession(void) {
     sgi.formFactor = XR_FORM_FACTOR_HEAD_MOUNTED_DISPLAY;
     if (XR_FAILED(xrGetSystem(gInstance, &sgi, &gSystem))) return 0;
 
+    // The runtime's own entry point for this is looked up rather than linked, so
+    // the build never depends on it being exported.
+    typedef XrResult (XRAPI_PTR *PFN_getGlesReqs)(XrInstance, XrSystemId, XrGraphicsRequirementsOpenGLESKHR *);
+    PFN_getGlesReqs getReqs = NULL;
+    if (XR_FAILED(xrGetInstanceProcAddr(gInstance, "xrGetOpenGLESGraphicsRequirementsKHR", (PFN_xrVoidFunction *)(&getReqs)))) return 0;
+    if (getReqs == NULL) return 0;
     XrGraphicsRequirementsOpenGLESKHR reqs;
     memset(&reqs, 0, sizeof(reqs));
     reqs.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_ES_KHR;
-    if (XR_FAILED(xrGetOpenGLESGraphicsRequirementsKHR(gInstance, gSystem, &reqs))) return 0;
+    if (XR_FAILED(getReqs(gInstance, gSystem, &reqs))) return 0;
 
     if (!makeContext()) return 0;
 
