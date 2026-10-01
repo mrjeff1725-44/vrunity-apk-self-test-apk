@@ -7,7 +7,7 @@ add_library(vrxr SHARED vrxr.c)
 # The build fetches it before Gradle runs.
 add_library(openxr_loader SHARED IMPORTED)
 set_target_properties(openxr_loader PROPERTIES
-    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../../jniLibs/${ANDROID_ABI}/libopenxr_loader.so)
+    IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../jniLibs/${ANDROID_ABI}/libopenxr_loader.so)
 
 target_include_directories(vrxr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/openxr)
 
