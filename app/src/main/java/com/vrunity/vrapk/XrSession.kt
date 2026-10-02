@@ -29,36 +29,44 @@ class XrSession(private val activity: Activity) {
 
     private var playerX = 0f
     private var playerZ = 0f
+    private var playerY = 0f
     private var playerYaw = 0f
     private var lastNs = 0L
+    private var frameCount = 0
 
     private val TURN_RATE = 1.7f   // radians per second
     private val WALK_SPEED = 2.6f  // metres per second
     private val NEAR = 0.05f
 
-    // Returns true when the headset took the app into VR (however it ended), false
-    // when there is no VR runtime here and the screen mode should be used instead.
-    fun run(): Boolean {
-        if (!Xr.start(activity)) return false
+    // 2 = the headset ran the game, 1 = VR opened but never handed over a frame,
+    // 0 = there is no VR runtime here and the screen mode should be used instead.
+    fun run(): Int {
+        if (!Xr.start(activity)) return 0
         val game = Game(activity)
         game.setup()
         playerX = game.startX
         playerZ = game.startZ
         playerYaw = game.startYaw
         lastNs = System.nanoTime()
+        var frames = 0
         try {
-            loop(game)
+            frames = loop(game)
         } finally {
             Xr.stop()
         }
-        return true
+        return if (frames > 0) 2 else 1
     }
 
-    private fun loop(game: Game) {
+    private fun loop(game: Game): Int {
+        var frames = 0
+        val began = System.nanoTime()
         while (true) {
             val status = Xr.poll(viewData)
-            if (status < 0) return
+            if (status < 0) return frames
             if (status == 0) {
+                // Give the runtime a few seconds for the first frame. If it never
+                // comes, the screen view is a better answer than a blank headset.
+                if (frames == 0 && System.nanoTime() - began > 6000000000L) return 0
                 Thread.sleep(6)
                 continue
             }
@@ -69,7 +77,8 @@ class XrSession(private val activity: Activity) {
             Xr.input(stick)
             steer(dt)
             drawEyes(game)
-            if (Xr.endFrame() < 0) return
+            frames++
+            if (Xr.endFrame() < 0) return frames
         }
     }
 
@@ -91,6 +100,11 @@ class XrSession(private val activity: Activity) {
         val dz = forward * -cos(total) + strafe * -sin(total)
         playerX += dx * WALK_SPEED * dt
         playerZ += dz * WALK_SPEED * dt
+        // An odd pose from the runtime must never poison the view matrix — one NaN in
+        // the player transform makes the whole scene vanish.
+        if (playerX.isNaN()) playerX = 0f
+        if (playerZ.isNaN()) playerZ = 0f
+        if (playerYaw.isNaN()) playerYaw = 0f
     }
 
     private fun headYaw(eye: Int): Float {
@@ -137,8 +151,27 @@ class XrSession(private val activity: Activity) {
         val h = Xr.eyeHeight()
         if (w <= 0 || h <= 0) return
         if (fboW != w || fboH != h) targets(w, h)
+        frameCount++
+        // A floor-relative space already reports the eyes at their real height. One
+        // that is not floor-relative starts at the head, so the eyes are lifted to the
+        // scene's own height instead of sitting on the ground.
+        playerY = if (Xr.floorSpace()) 0f else game.eyeHeight
+        // A pose that is not a number would make the frustum degenerate and hide the
+        // whole scene, so it is replaced with a sane view instead.
+        for (i in 0 until 22) {
+            if (viewData[i].isNaN() || viewData[i].isInfinite()) {
+                viewData[i] = when (i % 11) {
+                    0 -> -0.9f
+                    1 -> 0.9f
+                    2 -> 0.9f
+                    3 -> -0.9f
+                    10 -> 1f
+                    else -> 0f
+                }
+            }
+        }
         Matrix.setIdentityM(playerM, 0)
-        Matrix.translateM(playerM, 0, playerX, 0f, playerZ)
+        Matrix.translateM(playerM, 0, playerX, playerY, playerZ)
         Matrix.rotateM(playerM, 0, Math.toDegrees(playerYaw.toDouble()).toFloat(), 0f, 1f, 0f)
         for (eye in 0 until 2) {
             val tex = Xr.eyeTexture(eye)
@@ -161,7 +194,9 @@ class XrSession(private val activity: Activity) {
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fbo[eye])
             GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES20.GL_TEXTURE_2D, tex, 0)
             GLES20.glViewport(0, 0, w, h)
-            game.clear()
+            // The first moments are a flat colour, so a blank headset can be told
+            // apart from the scene simply not being drawn.
+            if (frameCount <= 40) game.clearTo(1f, 0f, 1f) else game.clear()
             game.draw(view, proj)
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0)
         }

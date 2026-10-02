@@ -19,9 +19,10 @@ class MainActivity : Activity() {
         // The headset's VR runtime is tried first, off the main thread — it does not
         // answer instantly.
         val thread = Thread {
-            val tookVr = XrSession(this).run()
+            // 2 = the headset ran the game, anything else falls back to the screen.
+            val result = XrSession(this).run()
             runOnUiThread {
-                if (tookVr) finish() else startScreenMode()
+                if (result == 2) finish() else startScreenMode()
             }
         }
         thread.start()

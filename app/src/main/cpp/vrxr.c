@@ -39,6 +39,7 @@ static XrFovf gEyeFov[MAX_EYES];
 static XrTime gDisplayTime = 0;
 static XrSessionState gState = XR_SESSION_STATE_UNKNOWN;
 static int gRunning = 0;
+static int gFloorSpace = 0;
 static int gAcquired = 0;
 static int gShouldQuit = 0;
 static EGLDisplay gEglDisplay = EGL_NO_DISPLAY;
@@ -190,7 +191,9 @@ static int createSession(void) {
     rci.type = XR_TYPE_REFERENCE_SPACE_CREATE_INFO;
     rci.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
     rci.poseInReferenceSpace.orientation.w = 1.0f;
-    if (XR_FAILED(xrCreateReferenceSpace(gSession, &rci, &gSpace))) {
+    if (XR_SUCCEEDED(xrCreateReferenceSpace(gSession, &rci, &gSpace))) {
+        gFloorSpace = 1;
+    } else {
         rci.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
         if (XR_FAILED(xrCreateReferenceSpace(gSession, &rci, &gSpace))) return 0;
     }
@@ -578,6 +581,10 @@ JNIEXPORT jint JNICALL Java_com_vrunity_vrapk_Xr_eyeWidth(JNIEnv *env, jobject t
 
 JNIEXPORT jint JNICALL Java_com_vrunity_vrapk_Xr_eyeHeight(JNIEnv *env, jobject thiz) {
     return gSwapH;
+}
+
+JNIEXPORT jboolean JNICALL Java_com_vrunity_vrapk_Xr_floorSpace(JNIEnv *env, jobject thiz) {
+    return gFloorSpace ? JNI_TRUE : JNI_FALSE;
 }
 
 JNIEXPORT jint JNICALL Java_com_vrunity_vrapk_Xr_endFrame(JNIEnv *env, jobject thiz) {

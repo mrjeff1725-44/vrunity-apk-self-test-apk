@@ -12,6 +12,10 @@ object Xr {
     external fun eyeTexture(eye: Int): Int
     external fun eyeWidth(): Int
     external fun eyeHeight(): Int
+
+    // True when the session's space is measured from the floor (eyes at their real
+    // height), false when it is measured from the head.
+    external fun floorSpace(): Boolean
     external fun endFrame(): Int
     external fun stop()
 

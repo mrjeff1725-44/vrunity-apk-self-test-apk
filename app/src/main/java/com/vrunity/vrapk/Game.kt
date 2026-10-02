@@ -80,6 +80,13 @@ class Game(context: Context) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
     }
 
+    // A flat colour for the eye images — used by the startup check that the picture
+    // really is reaching the lenses.
+    fun clearTo(r: Float, g: Float, b: Float) {
+        GLES20.glClearColor(r, g, b, 1f)
+        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
+    }
+
     // Draws the whole scene for one eye, given that eye's view and projection.
     fun draw(view: FloatArray, proj: FloatArray) {
         GLES20.glUseProgram(program)
