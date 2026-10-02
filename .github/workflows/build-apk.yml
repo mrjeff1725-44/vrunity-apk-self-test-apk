@@ -34,9 +34,22 @@ jobs:
         env:
           XDG_CONFIG_HOME: ${{ runner.temp }}
         run: gradle assembleDebug --no-daemon
+      - name: Use the app picture
+        run: |
+          mkdir -p app/src/main/res/drawable
+          curl -sSL --fail -o icon-src "https://media.base44.com/images/public/6aa0a9a275f397a5837aed02/82ff6617b_generated_image.png" || true
+          if convert icon-src -resize 512x512^ -gravity center -extent 512x512 app/src/main/res/drawable/app_icon.png 2>/dev/null && head -c 8 app/src/main/res/drawable/app_icon.png | grep -q PNG; then
+            echo "app picture applied"
+          else
+            sed -i 's/ android:icon="@drawable\/app_icon"//; s/ android:roundIcon="@drawable\/app_icon"//' app/src/main/AndroidManifest.xml
+            echo "no app picture - the build continues without one"
+          fi
+          rm -f icon-src
+      - name: Name the finished APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk "app/build/outputs/apk/debug/vrunity-self-test.apk"
       - name: Publish the APK
         uses: softprops/action-gh-release@v2
         with:
           tag_name: apk-${{ github.run_id }}
           name: VR game build ${{ github.run_id }}
-          files: app/build/outputs/apk/debug/app-debug.apk
+          files: app/build/outputs/apk/debug/vrunity-self-test.apk
