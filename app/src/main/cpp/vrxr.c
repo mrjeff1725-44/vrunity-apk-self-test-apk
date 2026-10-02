@@ -589,8 +589,11 @@ JNIEXPORT jboolean JNICALL Java_com_vrunity_vrapk_Xr_floorSpace(JNIEnv *env, job
 
 JNIEXPORT jint JNICALL Java_com_vrunity_vrapk_Xr_endFrame(JNIEnv *env, jobject thiz) {
     if (gSession == XR_NULL_HANDLE || gAcquired < MAX_EYES) return -1;
-    releaseImages();
+    // The frame has to reach the runtime while it still owns the eye images that the
+    // frame points at. Releasing them first leaves the compositor with a frame it
+    // cannot show, which is a black headset however well the scene was drawn.
     endFrameWith(1);
+    releaseImages();
     if (gShouldQuit || !gRunning) return -1;
     return 1;
 }
