@@ -3,7 +3,7 @@
   <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="false" />
   <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />
   <application
-      android:label="VRUnity Self Test"
+      android:label="VRUnity Demo"
       android:icon="@drawable/app_icon"
       android:roundIcon="@drawable/app_icon"
       android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen"
