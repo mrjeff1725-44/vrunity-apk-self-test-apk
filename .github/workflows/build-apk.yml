@@ -26,7 +26,13 @@ jobs:
           rm openxr.aar
       - name: Point Gradle at the Android SDK
         run: echo "sdk.dir=$ANDROID_SDK_ROOT" > local.properties
+      - name: Prepare the debug signing key
+        run: |
+          mkdir -p "$RUNNER_TEMP/.android"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/.android/debug.keystore" -storepass android -keypass android -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US" -noprompt
       - name: Build the game
+        env:
+          XDG_CONFIG_HOME: ${{ runner.temp }}
         run: gradle assembleDebug --no-daemon
       - name: Publish the APK
         uses: softprops/action-gh-release@v2
